@@ -14,9 +14,14 @@ SPEAKER_ID = 16
 BASE_DIR = os.path.join("static", "audio_output")
 
 try:
-    df = pd.read_csv("土地家屋調査士過去問集CSV.csv", encoding="utf-8", header=1)
+    df = pd.read_csv("土地家屋調査士過去問集CSV.csv", encoding="utf-8")
 except UnicodeDecodeError:
-    df = pd.read_csv("土地家屋調査士過去問集CSV.csv", encoding="cp932", header=1)
+    df = pd.read_csv("土地家屋調査士過去問集CSV.csv", encoding="cp932")
+
+# ▼ ここに追加
+print("取得できた列名:", df.columns.tolist())
+print("データ件数:", len(df))
+
 
 def save_voicevox_audio(text, speaker_id, file_path):
     """VOICEVOXから音声を取得して保存する関数"""
