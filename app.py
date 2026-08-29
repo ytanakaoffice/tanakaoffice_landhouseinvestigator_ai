@@ -259,28 +259,28 @@ def reset_password_request(email):
 # ==========================================
 # 1.5 付箋管理機能（Supabase DB）
 # ==========================================
-def get_user_bookmarks(user_id):
+def get_user_bookmarks2(user_id):
     if not user_id: return []
     try:
-        res = supabase.table("bookmarks").select("question_id").eq("user_id", user_id).execute()
+        res = supabase.table("bookmarks2").select("question_id").eq("user_id", user_id).execute()
         return [item["question_id"] for item in res.data]
     except Exception as e:
         st.error(f"付箋データの取得に失敗しました: {e}")
         return []
 
-def add_bookmark(user_id, question_id):
+def add_bookmark2(user_id, question_id):
     if not user_id: return False
     try:
-        supabase.table("bookmarks").insert({"user_id": user_id, "question_id": question_id}).execute()
+        supabase.table("bookmarks2").insert({"user_id": user_id, "question_id": question_id}).execute()
         return True
     except Exception as e:
         st.error(f"付箋の追加に失敗しました: {e}")
         return False
 
-def remove_bookmark(user_id, question_id):
+def remove_bookmark2(user_id, question_id):
     if not user_id: return False
     try:
-        supabase.table("bookmarks").delete().eq("user_id", user_id).eq("question_id", question_id).execute()
+        supabase.table("bookmarks2").delete().eq("user_id", user_id).eq("question_id", question_id).execute()
         return True
     except Exception as e:
         st.error(f"付箋の削除に失敗しました: {e}")
@@ -289,12 +289,12 @@ def remove_bookmark(user_id, question_id):
 # ==========================================
 # 2. 決済・サブスクリプション連携
 # ==========================================
-def ensure_subscription_record(email, user_id):
+def ensure_subscription2_record(email, user_id):
     try:
         clean_email = email.strip().lower()
-        response = supabase.table("subscriptions").select("email").eq("email", clean_email).execute()
+        response = supabase.table("subscriptions2").select("email").eq("email", clean_email).execute()
         if not response.data:
-             supabase.table("subscriptions").insert({
+             supabase.table("subscriptions2").insert({
                 "email": clean_email,
                 "user_id": user_id,
                 "status": "inactive",
@@ -302,12 +302,12 @@ def ensure_subscription_record(email, user_id):
                 "current_period_end": "1970-01-01T00:00:00+00:00"
             }).execute()
     except Exception as e:
-        print(f"ensure_subscription_record Error: {e}")
+        print(f"ensure_subscription2_record Error: {e}")
 
 def check_access(email):
     try:
         clean_email = email.strip().lower()
-        response = supabase.table("subscriptions").select("*").eq("email", clean_email).execute()
+        response = supabase.table("subscriptions2").select("*").eq("email", clean_email).execute()
         
         if response.data:
             sub = response.data[0]
@@ -339,16 +339,16 @@ def execute_account_deletion(user_email, user_id):
             try:
                 customers = stripe.Customer.list(email=clean_email, limit=1)
                 if customers.data:
-                    subs = stripe.Subscription.list(customer=customers.data[0].id, status="active")
+                    subs = stripe.Subscription2.list(customer=customers.data[0].id, status="active")
                     for s in subs.data:
-                        stripe.Subscription.cancel(s.id)
+                        stripe.Subscription2.cancel(s.id)
             except Exception as e:
                 print(f"Stripe cancel warning: {e}")
 
         if supabase_admin:
-            supabase_admin.table("subscriptions").delete().eq("email", clean_email).execute()
+            supabase_admin.table("subscriptions2").delete().eq("email", clean_email).execute()
         else:
-            supabase.table("subscriptions").delete().eq("email", clean_email).execute()
+            supabase.table("subscriptions2").delete().eq("email", clean_email).execute()
 
         if supabase_admin:
             supabase_admin.auth.admin.delete_user(user_id)
@@ -535,7 +535,7 @@ def show_delete_account_dialog():
 
     is_active_recurring = False
     try:
-        response = supabase.table("subscriptions").select("status, cancel_at_period_end").eq("email", curr_email.strip().lower()).execute()
+        response = supabase.table("subscriptions2").select("status, cancel_at_period_end").eq("email", curr_email.strip().lower()).execute()
         if response.data:
             sub_data = response.data[0]
             status = sub_data.get("status")
@@ -646,7 +646,7 @@ if st.session_state.get("user"):
     user_id = st.session_state["user"]["id"]
     
     if "is_premium" not in st.session_state:
-        ensure_subscription_record(user_email, user_id)
+        ensure_subscription2_record(user_email, user_id)
         st.session_state["is_premium"] = check_access(user_email)
         
     is_premium = st.session_state["is_premium"]
@@ -1001,8 +1001,8 @@ if "inline_waiting" not in st.session_state:
 if "main_waiting" not in st.session_state:
     st.session_state.main_waiting = False
 
-if "user_bookmarks" not in st.session_state:
-    st.session_state.user_bookmarks = get_user_bookmarks(user_id) if is_logged_in else []
+if "user_bookmarks2" not in st.session_state:
+    st.session_state.user_bookmarks2 = get_user_bookmarks2(user_id) if is_logged_in else []
 
 if "y_correct_count" not in st.session_state:
     st.session_state.y_correct_count = 0
@@ -1266,7 +1266,7 @@ if menu == "年度別":
                     q_num_val = row.get("問題番号", "")
                     limb_val = row.get("肢", "")
                     q_key = f"{q_num_val}_{limb_val}"
-                    is_bookmarked = q_key in st.session_state.user_bookmarks
+                    is_bookmarked = q_key in st.session_state.user_bookmarks2
 
                     with ui_top:
                         
@@ -1341,14 +1341,14 @@ if menu == "年度別":
                                     st.toast("付箋機能を利用するにはログインが必要です。", icon="🔒")
                             elif is_bookmarked:
                                 if st.button("📌 解除", key=f"bm_remove_y_{ptr}", type="primary", use_container_width=True):
-                                    if remove_bookmark(user_id, q_key):
-                                        st.session_state.user_bookmarks.remove(q_key)
+                                    if remove_bookmark2(user_id, q_key):
+                                        st.session_state.user_bookmarks2.remove(q_key)
                                         st.toast("付箋を外しました", icon="🗑️")
                                         st.rerun()
                             else:
                                 if st.button("🔖 付箋", key=f"bm_add_y_{ptr}", use_container_width=True):
-                                    if add_bookmark(user_id, q_key):
-                                        st.session_state.user_bookmarks.append(q_key)
+                                    if add_bookmark2(user_id, q_key):
+                                        st.session_state.user_bookmarks2.append(q_key)
                                         st.toast("付箋を追加しました！", icon="📌")
                                         st.rerun()
 
@@ -1523,7 +1523,7 @@ elif menu == "科目別":
                     q_num_val = row.get("問題番号", "")
                     limb_val = row.get("肢", "")
                     q_key = f"{q_num_val}_{limb_val}"
-                    is_bookmarked = q_key in st.session_state.user_bookmarks
+                    is_bookmarked = q_key in st.session_state.user_bookmarks2
 
                     with ui_top:
                         
@@ -1599,14 +1599,14 @@ elif menu == "科目別":
                                     st.toast("付箋機能を利用するにはログインが必要です。", icon="🔒")
                             elif is_bookmarked:
                                 if st.button("📌 解除", key=f"bm_remove_c_{ptr_c}", type="primary", use_container_width=True):
-                                    if remove_bookmark(user_id, q_key):
-                                        st.session_state.user_bookmarks.remove(q_key)
+                                    if remove_bookmark2(user_id, q_key):
+                                        st.session_state.user_bookmarks2.remove(q_key)
                                         st.toast("付箋を外しました", icon="🗑️")
                                         st.rerun()
                             else:
                                 if st.button("🔖 付箋", key=f"bm_add_c_{ptr_c}", use_container_width=True):
-                                    if add_bookmark(user_id, q_key):
-                                        st.session_state.user_bookmarks.append(q_key)
+                                    if add_bookmark2(user_id, q_key):
+                                        st.session_state.user_bookmarks2.append(q_key)
                                         st.toast("付箋を追加しました！", icon="📌")
                                         st.rerun()
 
@@ -1691,18 +1691,18 @@ elif menu == "付箋問題":
         if st.button("ログイン / 新規登録", type="primary"):
             show_auth_dialog()
     else:
-        current_bookmarks = st.session_state.get("user_bookmarks", [])
+        current_bookmarks2 = st.session_state.get("user_bookmarks2", [])
 
-        if not current_bookmarks:
+        if not current_bookmarks2:
             st.info("現在、付箋が登録されている問題はありません。各問題画面の「🔖 付箋をつける」ボタンから追加してください。")
         elif df.empty:
             st.error("問題データが読み込めませんでした。")
         else:
             df_bm = df.copy()
             df_bm["q_key"] = df_bm["問題番号"].astype(str) + "_" + df_bm["肢"].astype(str)
-            bookmark_rows = df_bm[df_bm["q_key"].isin(current_bookmarks)].reset_index(drop=True)
+            bookmark2_rows = df_bm[df_bm["q_key"].isin(current_bookmarks2)].reset_index(drop=True)
 
-            if bookmark_rows.empty:
+            if bookmark2_rows.empty:
                 st.info("付箋が登録されている問題は見つかりませんでした。")
             else:
                 ui_top = st.container()
@@ -1718,10 +1718,10 @@ elif menu == "付箋問題":
 
                 if (
                     st.session_state.get("bm_current_mode") != mode_bm
-                    or st.session_state.get("bm_list_length") != len(bookmark_rows)
+                    or st.session_state.get("bm_list_length") != len(bookmark2_rows)
                 ):
                     st.session_state.bm_current_mode = mode_bm
-                    st.session_state.bm_list_length = len(bookmark_rows)
+                    st.session_state.bm_list_length = len(bookmark2_rows)
                     st.session_state.bm_ptr = 0
                     st.session_state.bm_answered = False
                     st.session_state.bm_user_ans = None
@@ -1731,7 +1731,7 @@ elif menu == "付箋問題":
                     st.session_state.bm_active_audio = None
                     reset_inline_chat()
 
-                indices_bm = list(range(len(bookmark_rows)))
+                indices_bm = list(range(len(bookmark2_rows)))
                 if mode_bm == "ランダム":
                     random.shuffle(indices_bm)
                 st.session_state.bm_order = indices_bm
@@ -1742,8 +1742,8 @@ elif menu == "付箋問題":
                 if ptr_bm < len(order_bm):
                     current_target_idx_bm = order_bm[ptr_bm]
                     q_options_bm = []
-                    for i in range(len(bookmark_rows)):
-                        q_num = str(bookmark_rows.iloc[i]["問題番号"])
+                    for i in range(len(bookmark2_rows)):
+                        q_num = str(bookmark2_rows.iloc[i]["問題番号"])
                         if is_premium or "令和7年" in q_num:
                             q_options_bm.append(f"第 {i+1} 問")
                         else:
@@ -1766,7 +1766,7 @@ elif menu == "付箋問題":
                         reset_inline_chat()
                         st.rerun()
 
-                    row = bookmark_rows.iloc[current_target_idx_bm]
+                    row = bookmark2_rows.iloc[current_target_idx_bm]
                     is_locked_bm = "🔒" in selected_q_bm
 
                     if is_locked_bm:
@@ -1786,7 +1786,7 @@ elif menu == "付箋問題":
                         q_num_val = row.get("問題番号", "")
                         limb_val = row.get("肢", "")
                         q_key = f"{q_num_val}_{limb_val}"
-                        is_bookmarked = q_key in st.session_state.user_bookmarks
+                        is_bookmarked = q_key in st.session_state.user_bookmarks2
 
                         with ui_top:
                             
@@ -1794,7 +1794,7 @@ elif menu == "付箋問題":
                             with col_info_bm:
                                 st.markdown(
                                     f'<div style="font-size: 1.1rem; font-weight: 700; color: #0F172A; line-height: 1.3;">'
-                                    f'【 付箋問題 】 ( {ptr_bm + 1} / {len(bookmark_rows)} 問目 )<br>'
+                                    f'【 付箋問題 】 ( {ptr_bm + 1} / {len(bookmark2_rows)} 問目 )<br>'
                                     f'<span style="font-size: 0.85rem; font-weight: 500; color: #475569;">正答率: {acc_rate_bm:.1f}% ({st.session_state.bm_total_count}問中 {st.session_state.bm_correct_count}問正解)</span>'
                                     f'</div>',
                                     unsafe_allow_html=True
@@ -1859,15 +1859,15 @@ elif menu == "付箋問題":
                             with col_bm_bm:
                                 if is_bookmarked:
                                     if st.button("📌 解除", key=f"bm_remove_btn_{ptr_bm}", type="primary", use_container_width=True):
-                                        if remove_bookmark(user_id, q_key):
-                                            if q_key in st.session_state.user_bookmarks:
-                                                st.session_state.user_bookmarks.remove(q_key)
+                                        if remove_bookmark2(user_id, q_key):
+                                            if q_key in st.session_state.user_bookmarks2:
+                                                st.session_state.user_bookmarks2.remove(q_key)
                                             st.toast("付箋を外しました", icon="🗑️")
                                             st.rerun()
                                 else:
                                     if st.button("🔖 付箋", key=f"bm_add_btn_{ptr_bm}", use_container_width=True):
-                                        if add_bookmark(user_id, q_key):
-                                            st.session_state.user_bookmarks.append(q_key)
+                                        if add_bookmark2(user_id, q_key):
+                                            st.session_state.user_bookmarks2.append(q_key)
                                             st.toast("付箋を追加しました！", icon="📌")
                                             st.rerun()
 
