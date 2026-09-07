@@ -8,7 +8,7 @@ import pandas as pd
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 VOICEVOX_URL = "http://localhost:50021"
-SPEAKER_ID = 16
+SPEAKER_ID = 20
 
 # ベースとなる出力先ディレクトリ
 BASE_DIR = os.path.join("static", "audio_output")

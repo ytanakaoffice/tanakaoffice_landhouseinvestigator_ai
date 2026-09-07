@@ -228,9 +228,15 @@ def login(email, password):
 def signup(email, password):
     try:
         clean_email = email.strip().lower()
+        # 土地家屋調査士アプリ用のリダイレクト先URLを指定
+        redirect_url = "https://tanakaofficelandhouseinvestigatorai-mhcv88yqt5hwybwuxbmqwx.streamlit.app/" # 実際のアプリのURLに変更してください
+        
         res = supabase.auth.sign_up({
             "email": clean_email,
-            "password": password
+            "password": password,
+            "options": {
+                "email_redirect_to": redirect_url
+            }
         })
         return res
     except Exception as e:
@@ -250,7 +256,12 @@ def update_password(new_password):
 def reset_password_request(email):
     try:
         clean_email = email.strip().lower()
-        supabase.auth.reset_password_for_email(clean_email)
+        redirect_url = "https://tanakaofficelandhouseinvestigatorai-mhcv88yqt5hwybwuxbmqwx.streamlit.app/" # 実際のアプリのURLに変更してください
+        
+        supabase.auth.reset_password_for_email(
+            clean_email,
+            options={"email_redirect_to": redirect_url}
+        )
         return True
     except Exception as e:
         st.error(f"送信エラー: {e}")
